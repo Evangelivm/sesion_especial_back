@@ -14,7 +14,7 @@ import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001', // Permitir conexiones desde el origen configurado en el .env o por defecto
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000', // Permitir conexiones desde el origen configurado en el .env o por defecto
     methods: ['GET', 'POST'],
   },
 })
@@ -98,6 +98,42 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Suscribirse al canal en Redis
       await this.redisService.subscribe(channel, (message) => {
         //console.log(`Nuevo mensaje en ${channel}:`, message);
+        // Emitir el mensaje a todos los clientes conectados al canal
+        this.server.to(channel).emit(channel, message);
+      });
+
+      // Hacer que el cliente se una al canal en Socket.IO
+      client.join(channel);
+
+      console.log(`Cliente ${client.id} suscrito al canal ${channel}`);
+    } catch (error) {
+      console.error(
+        `Error al suscribir al cliente ${client.id} al canal ${channel}:`,
+        error,
+      );
+      client.emit('error', {
+        message: `No se pudo suscribir al canal ${channel}.`,
+        error: error.message,
+      });
+    }
+  }
+
+  @SubscribeMessage('subscribeToAlimentosStats')
+  async subscribeToAlimentosStats(@ConnectedSocket() client: Socket) {
+    const channel = 'alimentos-stats';
+
+    try {
+      // Obtener el último mensaje del canal desde Redis
+      const lastMessage = await this.prismaService.getLastMessage(channel);
+
+      // Enviar el último mensaje al cliente (si existe)
+      if (lastMessage) {
+        client.emit(channel, lastMessage);
+      }
+
+      // Suscribirse al canal en Redis
+      await this.redisService.subscribe(channel, (message) => {
+        console.log(`Actualización de alimentos recibida, emitiendo a clientes...`);
         // Emitir el mensaje a todos los clientes conectados al canal
         this.server.to(channel).emit(channel, message);
       });

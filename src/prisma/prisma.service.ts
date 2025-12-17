@@ -27,6 +27,7 @@ export class PrismaService
     await this.publishSummariesByAges();
     await this.publishRoomsByAgesAndGenre();
     await this.publishParticipantesOrdenados();
+    await this.publishAlimentosStats();
   }
 
   async onModuleDestroy() {
@@ -214,6 +215,9 @@ export class PrismaService
     console.log(
       `\x1b[32mLa asistencia de \x1b[33m${nombre} ${apellido}\x1b[32m ha sido registrada\x1b[0m`,
     );
+
+    // Publicar estadísticas actualizadas de alimentos
+    await this.publishAlimentosStats();
 
     return { message: 'Asistencia actualizada con éxito' };
   }
@@ -582,6 +586,30 @@ export class PrismaService
     }
   }
 
+  async publishAlimentosStats() {
+    try {
+      const participantes = await this.getAlimentosStats();
+      const message = JSON.stringify(participantes);
+      const channel = 'alimentos-stats';
+
+      // Guardar en Redis Hash
+      await this.redisService.setHash(
+        `last-message:${channel}`,
+        'message',
+        message,
+      );
+
+      // Publicar en el canal
+      await this.redisService.publish(channel, message);
+
+      console.log('Estadísticas de alimentos publicadas y guardadas');
+      return participantes;
+    } catch (error) {
+      console.error('Error al publicar estadísticas de alimentos:', error);
+      throw new Error('Error al publicar estadísticas de alimentos');
+    }
+  }
+
   // Método para crear un nuevo participante y su asistencia en una transacción
   async createParticipanteWithAsistencia(data: {
     apellido: string;
@@ -621,6 +649,52 @@ export class PrismaService
         id: datosId,
       };
     });
+  }
+
+  // Método para obtener estadísticas para alimentos
+  async getAlimentosStats() {
+    try {
+      const participantes = await this.$queryRaw<
+        {
+          id: number;
+          nombres: string;
+          sexo: string;
+          estaca: string;
+          barrio: string;
+          compañia: number;
+          habitacion: string;
+          asistio: string;
+          dieta: string;
+          obs_dieta: string;
+          tipo: string;
+        }[]
+      >`
+        SELECT
+          a.id AS id,
+          CONCAT(a.apellido, ", ", a.nombre) AS nombres,
+          a.sexo AS sexo,
+          CONCAT("Estaca ", f.estaca) AS estaca,
+          e.barrio AS barrio,
+          a.id_comp AS compañia,
+          c.habitacion AS habitacion,
+          d.asistio AS asistio,
+          a.dieta AS dieta,
+          a.obs_dieta AS obs_dieta,
+          a.tipo AS tipo
+        FROM datos a
+        JOIN habitacion c ON a.id_habitacion = c.id_habitacion
+        JOIN asistencia d ON a.id = d.datos_id
+        JOIN barrio e ON a.id_barrio = e.id_barrio
+        JOIN estaca f ON a.id_estaca = f.id_estaca
+        ORDER BY a.id_comp, a.sexo DESC, d.asistio DESC;
+      `;
+
+      console.log('Estadísticas de alimentos consultadas');
+      return participantes;
+    } catch (error) {
+      console.error('Error al consultar estadísticas de alimentos:', error);
+      throw new Error('Error al consultar estadísticas de alimentos');
+    }
   }
 
   // Método para obtener todas las habitaciones con sus ocupantes
