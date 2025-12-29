@@ -189,4 +189,47 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     }
   }
+
+  @SubscribeMessage('subscribeToAdminSettings')
+  async subscribeToAdminSettings(@ConnectedSocket() client: Socket) {
+    const channel = 'admin-settings';
+
+    try {
+      // Obtener configuración actual de Redis
+      const soloStaff = await this.redisService.get('admin:solo_staff');
+      const inscripcionesCerradas = await this.redisService.get(
+        'admin:inscripciones_cerradas',
+      );
+
+      // Enviar configuración actual al cliente
+      const currentSettings = {
+        soloStaff: soloStaff === 'true',
+        inscripcionesCerradas: inscripcionesCerradas === 'true',
+      };
+      client.emit(channel, JSON.stringify(currentSettings));
+
+      // Suscribirse al canal en Redis
+      await this.redisService.subscribe(channel, (message) => {
+        console.log(
+          `Actualización de configuración de admin recibida, emitiendo a clientes...`,
+        );
+        // Emitir el mensaje a todos los clientes conectados al canal
+        this.server.to(channel).emit(channel, message);
+      });
+
+      // Hacer que el cliente se una al canal en Socket.IO
+      client.join(channel);
+
+      console.log(`Cliente ${client.id} suscrito al canal ${channel}`);
+    } catch (error) {
+      console.error(
+        `Error al suscribir al cliente ${client.id} al canal ${channel}:`,
+        error,
+      );
+      client.emit('error', {
+        message: `No se pudo suscribir al canal ${channel}.`,
+        error: error.message,
+      });
+    }
+  }
 }

@@ -29,6 +29,7 @@ export const ParticipanteBasicoDtoSchema = z.object({
   id: z.number(),
   name: z.string(),
   compania: z.string().optional(),
+  tipo: z.string(),
 });
 
 export type ParticipanteBasicoDto = z.infer<typeof ParticipanteBasicoDtoSchema>;

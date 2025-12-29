@@ -13,6 +13,8 @@ import { SaludModule } from './salud/salud.module';
 import { PermutaModule } from './permuta/permuta.module';
 import { ConfigModule } from '@nestjs/config';
 import { ImportDatosModule } from './import-datos/import-datos.module';
+import { AdminModule } from './admin/admin.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { ImportDatosModule } from './import-datos/import-datos.module';
     SaludModule,
     PermutaModule,
     ImportDatosModule,
+    AuthModule,
+    AdminModule,
   ],
   controllers: [
     AppController,

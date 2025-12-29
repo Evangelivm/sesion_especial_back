@@ -6,7 +6,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*', // Permitir todos los orígenes
     methods: 'GET,PUT,POST,PATCH,DELETE', // Métodos permitidos
-    allowedHeaders: 'Content-Type, Accept', // Encabezados permitidos
+    allowedHeaders: 'Content-Type, Accept, Authorization', // Encabezados permitidos
     credentials: true, // Habilitar el envío de cookies y cabeceras de autenticación
   });
 

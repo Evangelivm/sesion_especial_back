@@ -37,17 +37,19 @@ export class PrismaService
   // Método para obtener todos los participantes
   async getParticipantes() {
     const participantes = await this.$queryRaw<
-      { id: number; name: string; compania: string }[]
+      { id: number; name: string; compania: string; tipo: string }[]
     >`
       SELECT
         d.id,
         CONCAT(d.apellido, ', ', d.nombre) AS name,
-        c.comp AS compania
+        c.comp AS compania,
+        d.tipo
       FROM datos d
       JOIN comp c ON d.id_comp = c.id_comp;
     `;
 
-    console.log('\x1b[95mLista total consultada\x1b[0m');
+    console.log('\x1b[95mLista total consultada:', participantes.length, '\x1b[0m');
+    console.log('Primeros 3 con tipo:', participantes.slice(0, 3).map(p => ({ id: p.id, name: p.name, tipo: p.tipo })));
     return participantes;
   }
 

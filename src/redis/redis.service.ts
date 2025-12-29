@@ -29,6 +29,15 @@ export class RedisService {
     await subscriber.subscribe(channel, listener);
   }
 
+  // Métodos para manejar key-value simples
+  async get(key: string): Promise<string | null> {
+    return await this.client.get(key);
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    await this.client.set(key, value);
+  }
+
   // Métodos para manejar Hashes
   async setHash(key: string, field: string, value: string) {
     await this.client.hSet(key, field, value);

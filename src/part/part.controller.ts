@@ -9,6 +9,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RedisService } from 'src/redis/redis.service';
 import { Response } from 'express';
 import {
   CreateParticipanteDtoSchema,
@@ -19,11 +20,16 @@ import { normalizeFullName } from 'src/common/utils/name-formatter.util';
 
 @Controller('part')
 export class PartController {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly redisService: RedisService,
+  ) {}
 
   @Get()
   async getParticipantes(): Promise<ParticipanteBasicoDto[]> {
-    return this.prismaService.getParticipantes();
+    const participantes = await this.prismaService.getParticipantes();
+    console.log('Controller - Primeros 3:', participantes.slice(0, 3));
+    return participantes;
   }
 
   @Get('medical-info/all')
@@ -112,6 +118,19 @@ export class PartController {
     @Res() res: Response,
   ) {
     try {
+      // Verificar si las inscripciones están cerradas
+      const inscripcionesCerradas = await this.redisService.get(
+        'admin:inscripciones_cerradas',
+      );
+
+      if (inscripcionesCerradas === 'true') {
+        // TODO: Verificar si el usuario es admin cuando BetterAuth esté implementado
+        return res.status(HttpStatus.FORBIDDEN).json({
+          message:
+            'Las inscripciones están cerradas. Solo los administradores pueden registrar nuevos participantes.',
+        });
+      }
+
       // Validar con Zod
       const validatedData = CreateParticipanteDtoSchema.parse(body);
 
