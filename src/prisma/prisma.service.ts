@@ -124,7 +124,7 @@ export class PrismaService
           barrio: string;
           asistio: string;
           telefono: string;
-          nacimiento: Date;
+          nacimiento: string;
           sexo: string;
           tipo: string;
           talla: string;
@@ -155,7 +155,7 @@ export class PrismaService
         e.barrio,
         f.asistio,
         a.telefono,
-        a.nacimiento,
+        DATE_FORMAT(a.nacimiento, '%Y-%m-%d') as nacimiento,
         a.sexo,
         a.tipo,
         a.talla,
@@ -377,6 +377,7 @@ export class PrismaService
       dieta: string;
       obs_dieta: string;
       tipo: string;
+      nacimiento: string;
     }[]
   > {
     try {
@@ -393,6 +394,7 @@ export class PrismaService
           dieta: string;
           obs_dieta: string;
           tipo: string;
+          nacimiento: string;
         }[]
       >`
         SELECT
@@ -406,7 +408,8 @@ export class PrismaService
           d.asistio AS asistio,
           a.dieta AS dieta,
           a.obs_dieta AS obs_dieta,
-          a.tipo AS tipo
+          a.tipo AS tipo,
+          DATE_FORMAT(a.nacimiento, '%Y-%m-%d') AS nacimiento
         FROM datos a
         JOIN habitacion c ON a.id_habitacion = c.id_habitacion
         JOIN asistencia d ON a.id = d.datos_id
@@ -562,10 +565,28 @@ export class PrismaService
     }
   }
 
-  async publishParticipantesOrdenados() {
+  async publishParticipantesOrdenados(changedParticipantId?: number) {
     try {
       const participantes = await this.getParticipantesOrdenados();
-      const message = JSON.stringify(participantes);
+
+      // Si se proporciona un ID, determinar la compañía que cambió
+      let changedCompany: number | undefined;
+      if (changedParticipantId) {
+        const changedParticipant = participantes.find(
+          p => p.id === changedParticipantId
+        );
+        if (changedParticipant) {
+          changedCompany = changedParticipant.compañia;
+          console.log(`Participante ID ${changedParticipantId} cambió en Compañía ${changedCompany}`);
+        }
+      }
+
+      // Crear el mensaje con metadata
+      const messagePayload = {
+        data: participantes,
+        changedCompany: changedCompany,
+      };
+      const message = JSON.stringify(messagePayload);
       const channel = 'participantes-ordenados';
 
       // Guardar en Redis Hash
@@ -610,6 +631,64 @@ export class PrismaService
     }
   }
 
+  async publishDireccionStats() {
+    try {
+      const participantes = await this.getParticipantesOrdenados();
+
+      // Contar participantes que asistieron (compañía > 2)
+      const participantesAsistieron = participantes.filter(
+        (p) => p.asistio === 'Si' && p.compañia > 2
+      ).length;
+
+      // Contar staff que asistieron (compañía === 2)
+      const staffAsistieron = participantes.filter(
+        (p) => p.asistio === 'Si' && p.compañia === 2
+      ).length;
+
+      // Filtrar cumpleañeros del día
+      const hoy = new Date();
+      const diaHoy = hoy.getDate();
+      const mesHoy = hoy.getMonth() + 1; // Los meses en JS van de 0-11
+
+      const cumpleaneros = participantes.filter((p) => {
+        if (!p.nacimiento) return false;
+
+        // Parsear la fecha de nacimiento sin timezone (formato: YYYY-MM-DD)
+        // Extraer directamente día y mes de la cadena sin conversiones de timezone
+        const [, mes, dia] = p.nacimiento.split('-').map(Number);
+
+        return dia === diaHoy && mes === mesHoy;
+      });
+
+      const stats = {
+        participantesAsistieron,
+        staffAsistieron,
+        totalAsistieron: participantesAsistieron + staffAsistieron,
+        cumpleaneros,
+        timestamp: new Date().toISOString(),
+      };
+
+      const message = JSON.stringify(stats);
+      const channel = 'direccion-stats';
+
+      // Guardar en Redis Hash
+      await this.redisService.setHash(
+        `last-message:${channel}`,
+        'message',
+        message,
+      );
+
+      // Publicar en el canal
+      await this.redisService.publish(channel, message);
+
+      console.log('Estadísticas de dirección publicadas y guardadas');
+      return stats;
+    } catch (error) {
+      console.error('Error al publicar estadísticas de dirección:', error);
+      throw new Error('Error al publicar estadísticas de dirección');
+    }
+  }
+
   // Método para crear un nuevo participante y su asistencia en una transacción
   async createParticipanteWithAsistencia(data: {
     apellido: string;
@@ -625,8 +704,8 @@ export class PrismaService
     return this.$transaction(async (prisma) => {
       // 1. Insertar en la tabla 'datos'
       const newParticipante = await prisma.$executeRaw`
-        INSERT INTO datos (apellido, nombre, nacimiento, edad, sexo, id_estaca, id_barrio, id_comp, id_habitacion, id_sesion, tipo)
-        VALUES (${data.apellido}, ${data.nombre}, ${data.nacimiento}, ${data.edad}, ${data.sexo}, ${data.id_estaca}, ${data.id_barrio}, ${data.id_comp}, ${data.id_habitacion}, 1,"Participante");
+        INSERT INTO datos (apellido, nombre, nacimiento, edad, sexo, id_estaca, id_barrio, id_comp, id_habitacion, tipo)
+        VALUES (${data.apellido}, ${data.nombre}, ${data.nacimiento}, ${data.edad}, ${data.sexo}, ${data.id_estaca}, ${data.id_barrio}, ${data.id_comp}, ${data.id_habitacion}, "Participante");
       `;
 
       // Obtener el ID del último registro insertado en 'datos'
@@ -787,6 +866,77 @@ export class PrismaService
     } catch (error) {
       console.error('Error al consultar habitaciones con ocupantes:', error);
       throw new Error('Error al consultar habitaciones con ocupantes');
+    }
+  }
+
+  // Método para actualizar información médica de un participante (dieta y alergias)
+  async updateMedicalInfo(
+    id: number,
+    data: {
+      dieta?: 'Si' | 'No';
+      obs_dieta?: string;
+      alergia_alimento?: 'Si' | 'No';
+      alergia_medicamento?: 'Si' | 'No';
+      alergia_polvo_pelos_acaro?: 'Si' | 'No';
+    },
+  ) {
+    try {
+      const updated = await this.datos.update({
+        where: { id },
+        data: {
+          dieta: data.dieta,
+          obs_dieta: data.obs_dieta,
+          alergia_alimento: data.alergia_alimento,
+          alergia_medicamento: data.alergia_medicamento,
+          alergia_polvo_pelos_acaro: data.alergia_polvo_pelos_acaro,
+        },
+      });
+
+      console.log(
+        `\x1b[33mInformación médica actualizada para ID: ${id}\x1b[0m`,
+      );
+      return updated;
+    } catch (error) {
+      console.error('Error al actualizar información médica:', error);
+      throw new Error('Error al actualizar información médica');
+    }
+  }
+
+  // Método para obtener todos los participantes con información médica
+  async getAllParticipantesConInfoMedica() {
+    try {
+      const participantes = await this.$queryRaw<
+        {
+          id: number;
+          nombre: string;
+          apellido: string;
+          tipo: string;
+          dieta: string;
+          obs_dieta: string;
+          alergia_alimento: string;
+          alergia_medicamento: string;
+          alergia_polvo_pelos_acaro: string;
+        }[]
+      >`
+        SELECT
+          d.id,
+          d.nombre,
+          d.apellido,
+          d.tipo,
+          d.dieta,
+          d.obs_dieta,
+          d.alergia_alimento,
+          d.alergia_medicamento,
+          d.alergia_polvo_pelos_acaro
+        FROM datos d
+        ORDER BY d.apellido, d.nombre;
+      `;
+
+      console.log('\x1b[95mLista de participantes con info médica consultada\x1b[0m');
+      return participantes;
+    } catch (error) {
+      console.error('Error al consultar participantes con info médica:', error);
+      throw new Error('Error al consultar participantes con info médica');
     }
   }
 }

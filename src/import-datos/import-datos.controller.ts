@@ -10,6 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ImportBulkDataSchema, ImportBulkDataDto } from './import-datos.dto';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { normalizeFullName } from 'src/common/utils/name-formatter.util';
 
 @Controller('import-datos')
 export class ImportDatosController {
@@ -26,31 +27,34 @@ export class ImportDatosController {
       // Realizar la importación en una transacción serializable
       const result = await this.prismaService.$transaction(
         async (prisma) => {
-          // Preparar los datos para inserción
-          const dataToInsert = validatedData.datos.map((dato) => ({
-            nombre: dato.nombre,
-            apellido: dato.apellido,
-            edad: dato.edad,
-            nacimiento: dato.nacimiento ? new Date(dato.nacimiento) : null,
-            id_sesion: dato.id_sesion,
-            id_estaca: dato.id_estaca,
-            id_barrio: dato.id_barrio,
-            id_comp: dato.id_comp,
-            id_habitacion: dato.id_habitacion,
-            telefono: dato.telefono || null,
-            sexo: dato.sexo,
-            tipo: dato.tipo,
-            correo: dato.correo || null,
-            talla: dato.talla || null,
-            nom_c1: dato.nom_c1 || null,
-            telef_c1: dato.telef_c1 || null,
-            grupo_sang: dato.grupo_sang || null,
-            miembro: dato.miembro || null,
-            enf_cronica: dato.enf_cronica || null,
-            trat_med: dato.trat_med || null,
-            seguro: dato.seguro || null,
-            alergia_med: dato.alergia_med || null,
-          }));
+          // Preparar los datos para inserción y normalizar nombres
+          const dataToInsert = validatedData.datos.map((dato) => {
+            const normalized = normalizeFullName(dato.nombre, dato.apellido);
+            return {
+              nombre: normalized.firstName,
+              apellido: normalized.lastName,
+              edad: dato.edad,
+              nacimiento: dato.nacimiento ? new Date(dato.nacimiento) : null,
+              id_sesion: dato.id_sesion,
+              id_estaca: dato.id_estaca,
+              id_barrio: dato.id_barrio,
+              id_comp: dato.id_comp,
+              id_habitacion: dato.id_habitacion,
+              telefono: dato.telefono || null,
+              sexo: dato.sexo,
+              tipo: dato.tipo,
+              correo: dato.correo || null,
+              talla: dato.talla || null,
+              nom_c1: dato.nom_c1 || null,
+              telef_c1: dato.telef_c1 || null,
+              grupo_sang: dato.grupo_sang || null,
+              miembro: dato.miembro || null,
+              enf_cronica: dato.enf_cronica || null,
+              trat_med: dato.trat_med || null,
+              seguro: dato.seguro || null,
+              alergia_med: dato.alergia_med || null,
+            };
+          });
 
           // Insertar todos los datos
           const createResult = await prisma.datos.createMany({

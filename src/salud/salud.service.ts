@@ -187,6 +187,11 @@ export class SaludService {
             id: true,
             nombre: true,
             apellido: true,
+            dieta: true,
+            obs_dieta: true,
+            alergia_alimento: true,
+            alergia_medicamento: true,
+            alergia_polvo_pelos_acaro: true,
           },
         },
         medicinas_recetadas: {
@@ -211,6 +216,11 @@ export class SaludService {
       datos: {
         id: atencion.datos.id,
         nombre_completo: `${atencion.datos.nombre} ${atencion.datos.apellido}`,
+        dieta: atencion.datos.dieta,
+        obs_dieta: atencion.datos.obs_dieta,
+        alergia_alimento: atencion.datos.alergia_alimento,
+        alergia_medicamento: atencion.datos.alergia_medicamento,
+        alergia_polvo_pelos_acaro: atencion.datos.alergia_polvo_pelos_acaro,
       },
     }));
 
@@ -232,6 +242,11 @@ export class SaludService {
             id: true,
             nombre: true,
             apellido: true,
+            dieta: true,
+            obs_dieta: true,
+            alergia_alimento: true,
+            alergia_medicamento: true,
+            alergia_polvo_pelos_acaro: true,
           },
         },
         medicinas_recetadas: {
@@ -255,6 +270,11 @@ export class SaludService {
       datos: {
         id: atencion.datos.id,
         nombre_completo: `${atencion.datos.nombre} ${atencion.datos.apellido}`,
+        dieta: atencion.datos.dieta,
+        obs_dieta: atencion.datos.obs_dieta,
+        alergia_alimento: atencion.datos.alergia_alimento,
+        alergia_medicamento: atencion.datos.alergia_medicamento,
+        alergia_polvo_pelos_acaro: atencion.datos.alergia_polvo_pelos_acaro,
       },
     }));
 

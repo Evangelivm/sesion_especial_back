@@ -10,4 +10,5 @@ export class ParticipanteStatsDto {
   dieta?: string;
   obs_dieta?: string;
   tipo?: string;
+  nacimiento?: string;
 }

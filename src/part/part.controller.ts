@@ -15,6 +15,7 @@ import {
   CreateParticipanteDto,
   ParticipanteBasicoDto,
 } from './dto/part.dto';
+import { normalizeFullName } from 'src/common/utils/name-formatter.util';
 
 @Controller('part')
 export class PartController {
@@ -23,6 +24,19 @@ export class PartController {
   @Get()
   async getParticipantes(): Promise<ParticipanteBasicoDto[]> {
     return this.prismaService.getParticipantes();
+  }
+
+  @Get('medical-info/all')
+  async getAllParticipantesConInfoMedica(@Res() res: Response) {
+    try {
+      const participantes = await this.prismaService.getAllParticipantesConInfoMedica();
+      return res.status(HttpStatus.OK).json(participantes);
+    } catch (error) {
+      console.error('Error al obtener participantes con info médica:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Error al obtener participantes con info médica' });
+    }
   }
 
   @Get(':id')
@@ -66,9 +80,30 @@ export class PartController {
     console.log('Actualización realizada, publicando resúmenes...');
     await this.prismaService.publishSummariesByAges();
     await this.prismaService.publishRoomsByAgesAndGenre();
-    await this.prismaService.publishParticipantesOrdenados();
+    await this.prismaService.publishParticipantesOrdenados(Number(id));
+    await this.prismaService.publishDireccionStats();
 
     return response;
+  }
+
+  @Put(':id/medical-info')
+  async updateMedicalInfo(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    try {
+      const updated = await this.prismaService.updateMedicalInfo(
+        Number(id),
+        body,
+      );
+      return res.status(HttpStatus.OK).json(updated);
+    } catch (error) {
+      console.error('Error al actualizar información médica:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Error al actualizar información médica' });
+    }
   }
 
   @Post()
@@ -80,14 +115,27 @@ export class PartController {
       // Validar con Zod
       const validatedData = CreateParticipanteDtoSchema.parse(body);
 
+      // Normalizar nombre y apellido (trim + proper case)
+      const normalized = normalizeFullName(
+        validatedData.nombre,
+        validatedData.apellido,
+      );
+
+      // Aplicar los valores normalizados
+      const dataToSave = {
+        ...validatedData,
+        nombre: normalized.firstName,
+        apellido: normalized.lastName,
+      };
+
       const result = await this.prismaService.createParticipanteWithAsistencia(
-        validatedData,
+        dataToSave,
       );
       // Publicar resúmenes después del POST
       console.log('Nuevo participante creado, publicando resúmenes...');
       await this.prismaService.publishSummariesByAges();
       await this.prismaService.publishRoomsByAgesAndGenre();
-      await this.prismaService.publishParticipantesOrdenados();
+      await this.prismaService.publishParticipantesOrdenados(result.id);
 
       return res.status(HttpStatus.CREATED).json(result);
     } catch (error) {
