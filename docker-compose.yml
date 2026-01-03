@@ -4,12 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '3000:3000'
-    environment:
-      DATABASE_URL: mysql://root:XXXperu2020XXX.@ayala_back:3306/confejas_2025
-      CORS_ORIGIN: http://161.132.54.103
-      REDIS_HOST: 161.132.54.103
-      REDIS_PORT: 6379
+      - "3001:3001"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - shared_network
 
