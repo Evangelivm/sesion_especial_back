@@ -9,7 +9,6 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ImportBulkDataSchema, ImportBulkDataDto } from './import-datos.dto';
 import { ZodError } from 'zod';
-import { Prisma } from '@prisma/client';
 import { normalizeFullName } from 'src/common/utils/name-formatter.util';
 
 @Controller('import-datos')
