@@ -42,14 +42,23 @@ export class PrismaService
       SELECT
         d.id,
         CONCAT(d.apellido, ', ', d.nombre) AS name,
-        c.comp AS compania,
+        CONCAT('C', c.id_comp - 2) AS compania,
         d.tipo
       FROM datos d
       JOIN comp c ON d.id_comp = c.id_comp;
     `;
 
-    console.log('\x1b[95mLista total consultada:', participantes.length, '\x1b[0m');
-    console.log('Primeros 3 con tipo:', participantes.slice(0, 3).map(p => ({ id: p.id, name: p.name, tipo: p.tipo })));
+    console.log(
+      '\x1b[95mLista total consultada:',
+      participantes.length,
+      '\x1b[0m',
+    );
+    console.log(
+      'Primeros 3 con tipo:',
+      participantes
+        .slice(0, 3)
+        .map((p) => ({ id: p.id, name: p.name, tipo: p.tipo })),
+    );
     return participantes;
   }
 
@@ -73,16 +82,16 @@ export class PrismaService
           asistio: string;
         }[]
       >`
-      SELECT 
-        a.id, 
-        b.comp, 
-        a.nombre, 
-        a.apellido, 
-        c.habitacion, 
-        a.edad, 
-        d.estaca, 
+      SELECT
+        a.id,
+        CONCAT('C', b.id_comp - 2) AS comp,
+        a.nombre,
+        a.apellido,
+        c.habitacion,
+        a.edad,
+        d.estaca,
         e.barrio,
-        f.asistio 
+        f.asistio
       FROM datos a
       JOIN comp b ON a.id_comp = b.id_comp
       JOIN habitacion c ON a.id_habitacion = c.id_habitacion
@@ -148,7 +157,7 @@ export class PrismaService
       >`
       SELECT
         a.id,
-        b.comp,
+        CONCAT('C', b.id_comp - 2) AS comp,
         a.nombre,
         a.apellido,
         c.habitacion,
@@ -226,29 +235,27 @@ export class PrismaService
   // Método para ejecutar la consulta según la edad
   async getSummaryByAge(edad: number) {
     return this.$queryRaw`
-      SELECT 
-        a.id_comp, c.comp,
-        SUM(CASE WHEN a.sexo = 'H' THEN 1 ELSE 0 END) AS hombres, 
-        SUM(CASE WHEN a.sexo = 'M' THEN 1 ELSE 0 END) AS mujeres 
-      FROM 
-        datos a 
-      JOIN 
-        asistencia b 
-      ON 
-        a.id = b.datos_id 
-        JOIN comp c ON a.id_comp=c.id_comp
-      WHERE 
-        a.id_comp IN (
-          SELECT id_comp 
-          FROM datos 
+      SELECT
+        c.id_comp,
+        c.comp,
+        SUM(CASE WHEN a.sexo = 'H' AND a.tipo = 'Participante' AND b.asistio = 'Si' THEN 1 ELSE 0 END) AS hombres,
+        SUM(CASE WHEN a.sexo = 'M' AND a.tipo = 'Participante' AND b.asistio = 'Si' THEN 1 ELSE 0 END) AS mujeres
+      FROM
+        comp c
+      LEFT JOIN
+        datos a ON c.id_comp = a.id_comp
+      LEFT JOIN
+        asistencia b ON a.id = b.datos_id
+      WHERE
+        c.id_comp IN (
+          SELECT DISTINCT id_comp
+          FROM datos
           WHERE edad = ${edad}
-        ) 
-        AND a.tipo = 'Participante' 
-        AND b.asistio = 'Si' 
-      GROUP BY 
-        a.id_comp 
-      ORDER BY 
-        hombres DESC, 
+        )
+      GROUP BY
+        c.id_comp
+      ORDER BY
+        hombres DESC,
         mujeres DESC;
     `;
   }
@@ -287,9 +294,7 @@ export class PrismaService
 
   // Método para publicar y guardar en Hashes
   async publishSummariesByAges() {
-    const edades = [
-      18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
-    ];
+    const edades = [13, 14, 15, 16, 17, 18];
 
     for (const edad of edades) {
       const summary = await this.getSummaryByAge(edad);
@@ -313,9 +318,7 @@ export class PrismaService
   }
   // Método para publicar habitaciones y guardar en Hashes
   async publishRoomsByAgesAndGenre() {
-    const edades = [
-      18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
-    ];
+    const edades = [13, 14, 15, 16, 17, 18];
     const generos = ['H', 'M'];
     for (const genero of generos) {
       for (const edad of edades) {
@@ -449,21 +452,21 @@ export class PrismaService
           a.id,
           CONCAT(a.apellido, ", ", a.nombre) AS nombres,
           a.sexo AS sexo,
-          f.estaca AS estaca,
-          e.barrio AS barrio,
+          COALESCE(f.estaca, 'Sin estaca') AS estaca,
+          COALESCE(e.barrio, 'Sin barrio') AS barrio,
           a.edad,
           a.tipo,
-          g.comp AS comp,
-          c.habitacion AS habitacion,
-          d.asistio AS asistio
+          CONCAT('C', g.id_comp - 2) AS comp,
+          COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
+          COALESCE(d.asistio, 'No') AS asistio
         FROM datos a
-        JOIN habitacion c ON a.id_habitacion = c.id_habitacion
-        JOIN asistencia d ON a.id = d.datos_id
-        JOIN barrio e ON a.id_barrio = e.id_barrio
-        JOIN estaca f ON a.id_estaca = f.id_estaca
+        LEFT JOIN habitacion c ON a.id_habitacion = c.id_habitacion
+        LEFT JOIN asistencia d ON a.id = d.datos_id
+        LEFT JOIN barrio e ON a.id_barrio = e.id_barrio
+        LEFT JOIN estaca f ON a.id_estaca = f.id_estaca
         JOIN comp g ON a.id_comp = g.id_comp
         WHERE g.id_comp = ${id}
-        ORDER BY a.id_comp, a.sexo DESC, d.asistio DESC;
+        ORDER BY a.tipo DESC, a.sexo DESC, COALESCE(d.asistio, 'No') DESC;
       `;
 
       console.log('Lista ordenada por compania consultada');
@@ -505,7 +508,7 @@ export class PrismaService
           CONCAT(a.nombre, " ", a.apellido) AS nombres,
           a.edad,
           a.sexo,
-          REPLACE(g.comp, 'C', '') AS comp,
+          g.id_comp - 2 AS comp,
           a.grupo_sang,
           a.enf_cronica,
           a.trat_med,
@@ -517,7 +520,7 @@ export class PrismaService
           a.alergia_polvo_pelos_acaro
         FROM datos a
         JOIN comp g ON a.id_comp = g.id_comp
-        ORDER BY g.comp, nombres;
+        ORDER BY g.id_comp, nombres;
       `;
 
       console.log('\x1b[95mDatos de salud consultados\x1b[0m');
@@ -549,14 +552,14 @@ export class PrismaService
           CONCAT(a.nombre, " ", a.apellido) AS nombres,
           a.edad,
           a.sexo,
-          CONCAT('Compañia ', REPLACE(g.comp, 'C', '')) AS comp,
+          CONCAT('Compañia ', g.id_comp - 2) AS comp,
           a.grupo_sang,
           a.enf_cronica,
           a.trat_med,
           a.alergia_med
         FROM datos a
         JOIN comp g ON a.id_comp = g.id_comp
-        ORDER BY g.comp, nombres;
+        ORDER BY g.id_comp, nombres;
       `;
 
       console.log('\x1b[95mDatos de salud completos consultados\x1b[0m');
@@ -575,11 +578,13 @@ export class PrismaService
       let changedCompany: number | undefined;
       if (changedParticipantId) {
         const changedParticipant = participantes.find(
-          p => p.id === changedParticipantId
+          (p) => p.id === changedParticipantId,
         );
         if (changedParticipant) {
           changedCompany = changedParticipant.compañia;
-          console.log(`Participante ID ${changedParticipantId} cambió en Compañía ${changedCompany}`);
+          console.log(
+            `Participante ID ${changedParticipantId} cambió en Compañía ${changedCompany}`,
+          );
         }
       }
 
@@ -639,12 +644,12 @@ export class PrismaService
 
       // Contar participantes que asistieron (compañía > 2)
       const participantesAsistieron = participantes.filter(
-        (p) => p.asistio === 'Si' && p.compañia > 2
+        (p) => p.asistio === 'Si' && p.compañia > 2,
       ).length;
 
       // Contar staff que asistieron (compañía === 2)
       const staffAsistieron = participantes.filter(
-        (p) => p.asistio === 'Si' && p.compañia === 2
+        (p) => p.asistio === 'Si' && p.compañia === 2,
       ).length;
 
       // Filtrar cumpleañeros del día
@@ -839,7 +844,7 @@ export class PrismaService
               d.id,
               CONCAT(d.nombre, ' ', d.apellido) AS nombre,
               d.edad,
-              c.comp AS compania,
+              CONCAT('C', c.id_comp - 2) AS compania,
               d.tipo AS tipo
             FROM datos d
             JOIN asistencia a ON d.id = a.datos_id
@@ -861,9 +866,7 @@ export class PrismaService
         }),
       );
 
-      console.log(
-        '\x1b[95mHabitaciones con ocupantes consultadas\x1b[0m',
-      );
+      console.log('\x1b[95mHabitaciones con ocupantes consultadas\x1b[0m');
       return habitacionesConOcupantes;
     } catch (error) {
       console.error('Error al consultar habitaciones con ocupantes:', error);
@@ -934,7 +937,9 @@ export class PrismaService
         ORDER BY d.apellido, d.nombre;
       `;
 
-      console.log('\x1b[95mLista de participantes con info médica consultada\x1b[0m');
+      console.log(
+        '\x1b[95mLista de participantes con info médica consultada\x1b[0m',
+      );
       return participantes;
     } catch (error) {
       console.error('Error al consultar participantes con info médica:', error);

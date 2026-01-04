@@ -12,6 +12,8 @@ import {
   IntercambioParticipantesDto,
   CambioCompaniaDtoSchema,
   CambioCompaniaDto,
+  CambioCompuestoDtoSchema,
+  CambioCompuestoDto,
   CompaniaDto,
 } from './dto/permuta.dto';
 
@@ -90,6 +92,39 @@ export class PermutaController {
   @Get('historial')
   async obtenerHistorial() {
     return this.permutaService.obtenerHistorial();
+  }
+
+  /**
+   * Endpoint para cambio compuesto (compañía y habitación)
+   * POST /permuta/cambio-compuesto
+   */
+  @Post('cambio-compuesto')
+  async cambioCompuesto(@Body() body: CambioCompuestoDto) {
+    try {
+      // Validar con Zod
+      const validatedData = CambioCompuestoDtoSchema.parse(body);
+      const { persona_id, nueva_compania_id, nueva_habitacion_id } =
+        validatedData;
+
+      const resultado = await this.permutaService.cambioCompuesto(
+        persona_id,
+        nueva_compania_id,
+        nueva_habitacion_id,
+      );
+
+      return resultado;
+    } catch (error) {
+      console.error('Error en cambio compuesto:', error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        error.message || 'Error al realizar el cambio compuesto',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**

@@ -18,6 +18,15 @@ export const CambioCompaniaDtoSchema = z.object({
 
 export type CambioCompaniaDto = z.infer<typeof CambioCompaniaDtoSchema>;
 
+// DTO para cambio compuesto (compañía y habitación)
+export const CambioCompuestoDtoSchema = z.object({
+  persona_id: z.number().positive(),
+  nueva_compania_id: z.number().positive(),
+  nueva_habitacion_id: z.number().positive(),
+});
+
+export type CambioCompuestoDto = z.infer<typeof CambioCompuestoDtoSchema>;
+
 // DTO para respuesta de compañía
 export const CompaniaDtoSchema = z.object({
   id_comp: z.number(),
