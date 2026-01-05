@@ -19,6 +19,19 @@ export class PrismaService
     });
   }
 
+  // Helper para convertir BigInt a Number en objetos
+  private convertBigIntToNumber<T>(data: T[]): T[] {
+    return data.map(item => {
+      const converted = { ...item };
+      for (const key in converted) {
+        if (typeof converted[key] === 'bigint') {
+          (converted as any)[key] = Number(converted[key]);
+        }
+      }
+      return converted;
+    });
+  }
+
   async onModuleInit() {
     await this.$connect();
 
@@ -42,7 +55,11 @@ export class PrismaService
       SELECT
         d.id,
         CONCAT(d.apellido, ', ', d.nombre) AS name,
-        CASE WHEN c.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', c.id_comp - 2) END AS compania,
+        CASE
+          WHEN c.id_comp = 1 THEN 'SC'
+          WHEN c.id_comp = 2 THEN 'Staff'
+          ELSE CONCAT('C', c.id_comp - 2)
+        END AS compania,
         d.tipo
       FROM datos d
       JOIN comp c ON d.id_comp = c.id_comp;
@@ -59,7 +76,7 @@ export class PrismaService
         .slice(0, 3)
         .map((p) => ({ id: p.id, name: p.name, tipo: p.tipo })),
     );
-    return participantes;
+    return this.convertBigIntToNumber(participantes);
   }
 
   // Método para obtener un participante por id_part
@@ -84,7 +101,11 @@ export class PrismaService
       >`
       SELECT
         a.id,
-        CASE WHEN b.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', b.id_comp - 2) END AS comp,
+        CASE
+          WHEN b.id_comp = 1 THEN 'SC'
+          WHEN b.id_comp = 2 THEN 'Staff'
+          ELSE CONCAT('C', b.id_comp - 2)
+        END AS comp,
         a.nombre,
         a.apellido,
         c.habitacion,
@@ -109,7 +130,7 @@ export class PrismaService
       const apellido = participante[0].apellido || 'Desconocido';
       console.log(`Se consultó a \x1b[33m${nombre} ${apellido}\x1b[0m`);
 
-      return participante;
+      return this.convertBigIntToNumber(participante);
     } catch (error) {
       console.error('Error al consultar el participante:', error);
       throw new Error('Error al consultar el participante');
@@ -157,7 +178,11 @@ export class PrismaService
       >`
       SELECT
         a.id,
-        CASE WHEN b.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', b.id_comp - 2) END AS comp,
+        CASE
+          WHEN b.id_comp = 1 THEN 'SC'
+          WHEN b.id_comp = 2 THEN 'Staff'
+          ELSE CONCAT('C', b.id_comp - 2)
+        END AS comp,
         a.nombre,
         a.apellido,
         c.habitacion,
@@ -203,7 +228,7 @@ export class PrismaService
         `Se consultó \x1b[4mtoda la información\x1b[24m de \x1b[33m${nombre} ${apellido}\x1b[0m`,
       );
 
-      return participante;
+      return this.convertBigIntToNumber(participante);
     } catch (error) {
       console.error('Error al consultar el participante:', error);
       throw new Error('Error al consultar el participante');
@@ -234,7 +259,14 @@ export class PrismaService
   }
   // Método para ejecutar la consulta según la edad
   async getSummaryByAge(edad: number) {
-    return this.$queryRaw`
+    const result = await this.$queryRaw<
+      {
+        id_comp: number;
+        comp: string;
+        hombres: number;
+        mujeres: number;
+      }[]
+    >`
       SELECT
         c.id_comp,
         c.comp,
@@ -258,11 +290,21 @@ export class PrismaService
         hombres DESC,
         mujeres DESC;
     `;
+    return this.convertBigIntToNumber(result);
   }
 
   // Método para ejecutar la consulta de habitaciones según la edad y género
   async getRoomsByAgesAndGenre(edad: number, sexo: string) {
-    const result = await this.$queryRaw`
+    const result = await this.$queryRaw<
+      {
+        id_habitacion: number;
+        habitacion: string;
+        camas: number;
+        registrados: number;
+        ocupados: number;
+        libres: number;
+      }[]
+    >`
  SELECT
         a.id_habitacion,
         a.habitacion,
@@ -273,7 +315,7 @@ export class PrismaService
     FROM habitacion a
     JOIN datos b ON a.id_habitacion = b.id_habitacion
     JOIN asistencia c ON b.id = c.datos_id
-    WHERE b.sexo = ${sexo} 
+    WHERE b.sexo = ${sexo}
       AND a.id_habitacion IN (
           SELECT id_habitacion
           FROM datos
@@ -283,8 +325,10 @@ export class PrismaService
     GROUP BY a.id_habitacion,a.habitacion, a.capacidad;
   `;
 
-    // Convertir los resultados a tipo number
-    return (result as any).map((row) => ({
+    // Convertir BigInt a Number
+    const converted = this.convertBigIntToNumber(result);
+    // Convertir los resultados agregados a tipo number
+    return (converted as any).map((row) => ({
       ...row,
       registrados: Number(row.registrados),
       ocupados: Number(row.ocupados),
@@ -350,15 +394,18 @@ export class PrismaService
     >`SELECT id_estaca, estaca FROM estaca;`;
 
     console.log('Estacas consultadas:', estacas);
-    return estacas;
+    return this.convertBigIntToNumber(estacas);
   }
   // Método para obtener barrios por estaca
   async getBarriosByEstaca(estacaId: string) {
-    return this.$queryRaw`
-      SELECT id_barrio, barrio 
-      FROM barrio 
+    const barrios = await this.$queryRaw<
+      { id_barrio: number; barrio: string }[]
+    >`
+      SELECT id_barrio, barrio
+      FROM barrio
       WHERE id_estaca = ${estacaId};
     `;
+    return this.convertBigIntToNumber(barrios);
   }
   // Obtener el último mensaje desde Redis Hash
   async getLastMessage(channel: string) {
@@ -424,7 +471,7 @@ export class PrismaService
       `;
 
       console.log('Lista ordenada consultada');
-      return participantes;
+      return this.convertBigIntToNumber(participantes);
     } catch (error) {
       console.error('Error al consultar la lista ordenada:', error);
       throw new Error('Error al consultar la lista ordenada de participantes');
@@ -456,7 +503,11 @@ export class PrismaService
           COALESCE(e.barrio, 'Sin barrio') AS barrio,
           a.edad,
           a.tipo,
-          CASE WHEN g.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', g.id_comp - 2) END AS comp,
+          CASE
+            WHEN g.id_comp = 1 THEN 'SC'
+            WHEN g.id_comp = 2 THEN 'Staff'
+            ELSE CONCAT('C', g.id_comp - 2)
+          END AS comp,
           COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
           COALESCE(d.asistio, 'No') AS asistio
         FROM datos a
@@ -470,7 +521,7 @@ export class PrismaService
       `;
 
       console.log('Lista ordenada por compania consultada');
-      return participantes;
+      return this.convertBigIntToNumber(participantes);
     } catch (error) {
       console.error(
         'Error al consultar la lista ordenada por compania:',
@@ -510,6 +561,7 @@ export class PrismaService
           COALESCE(a.sexo, 'H') AS sexo,
           CASE
             WHEN g.id_comp IS NULL THEN 'Sin Compañía'
+            WHEN g.id_comp = 1 THEN 'SC'
             WHEN g.id_comp = 2 THEN 'Staff'
             ELSE CONCAT('C', g.id_comp - 2)
           END AS comp,
@@ -528,7 +580,9 @@ export class PrismaService
       `;
 
       console.log('\x1b[95mDatos de salud consultados:', saludData.length, 'registros\x1b[0m');
-      return saludData;
+
+      // Convertir BigInt a Number para serialización JSON
+      return this.convertBigIntToNumber(saludData);
     } catch (error) {
       console.error('\x1b[31m❌ Error al consultar los datos de salud:\x1b[0m', error);
       console.error('Detalles del error:', error.message);
@@ -558,7 +612,11 @@ export class PrismaService
           CONCAT(a.nombre, " ", a.apellido) AS nombres,
           a.edad,
           a.sexo,
-          CASE WHEN g.id_comp = 2 THEN 'Compañia Staff' ELSE CONCAT('Compañia ', g.id_comp - 2) END AS comp,
+          CASE
+            WHEN g.id_comp = 1 THEN 'Compañia SC'
+            WHEN g.id_comp = 2 THEN 'Compañia Staff'
+            ELSE CONCAT('Compañia ', g.id_comp - 2)
+          END AS comp,
           a.grupo_sang,
           a.enf_cronica,
           a.trat_med,
@@ -569,7 +627,7 @@ export class PrismaService
       `;
 
       console.log('\x1b[95mDatos de salud completos consultados\x1b[0m');
-      return saludData;
+      return this.convertBigIntToNumber(saludData);
     } catch (error) {
       console.error('Error al consultar los datos de salud completos:', error);
       throw new Error('Error al consultar los datos de salud completos');
@@ -782,7 +840,7 @@ export class PrismaService
       `;
 
       console.log('Estadísticas de alimentos consultadas');
-      return participantes;
+      return this.convertBigIntToNumber(participantes);
     } catch (error) {
       console.error('Error al consultar estadísticas de alimentos:', error);
       throw new Error('Error al consultar estadísticas de alimentos');
@@ -850,7 +908,11 @@ export class PrismaService
               d.id,
               CONCAT(d.nombre, ' ', d.apellido) AS nombre,
               d.edad,
-              CASE WHEN c.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', c.id_comp - 2) END AS compania,
+              CASE
+                WHEN c.id_comp = 1 THEN 'SC'
+                WHEN c.id_comp = 2 THEN 'Staff'
+                ELSE CONCAT('C', c.id_comp - 2)
+              END AS compania,
               d.tipo AS tipo
             FROM datos d
             JOIN asistencia a ON d.id = a.datos_id
@@ -861,13 +923,13 @@ export class PrismaService
           `;
 
           return {
-            id_habitacion: habitacion.id_habitacion,
+            id_habitacion: Number(habitacion.id_habitacion),
             habitacion: habitacion.habitacion,
             sexo: habitacion.sexo,
             camas: Number(habitacion.camas),
             ocupados: Number(habitacion.ocupados),
             libres: Math.max(0, Number(habitacion.libres)),
-            ocupantes: ocupantes,
+            ocupantes: this.convertBigIntToNumber(ocupantes),
           };
         }),
       );
@@ -946,7 +1008,7 @@ export class PrismaService
       console.log(
         '\x1b[95mLista de participantes con info médica consultada\x1b[0m',
       );
-      return participantes;
+      return this.convertBigIntToNumber(participantes);
     } catch (error) {
       console.error('Error al consultar participantes con info médica:', error);
       throw new Error('Error al consultar participantes con info médica');
