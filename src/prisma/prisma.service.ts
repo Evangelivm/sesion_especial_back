@@ -104,21 +104,22 @@ export class PrismaService
         CASE
           WHEN b.id_comp = 1 THEN 'SC'
           WHEN b.id_comp = 2 THEN 'Staff'
-          ELSE CONCAT('C', b.id_comp - 2)
+          WHEN b.id_comp IS NOT NULL THEN CONCAT('C', b.id_comp - 2)
+          ELSE 'Sin compañía'
         END AS comp,
-        a.nombre,
-        a.apellido,
-        c.habitacion,
-        a.edad,
-        d.estaca,
-        e.barrio,
-        f.asistio
+        COALESCE(a.nombre, 'Desconocido') AS nombre,
+        COALESCE(a.apellido, 'Desconocido') AS apellido,
+        COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
+        COALESCE(a.edad, 0) AS edad,
+        COALESCE(d.estaca, 'Sin estaca') AS estaca,
+        COALESCE(e.barrio, 'Sin barrio') AS barrio,
+        COALESCE(f.asistio, 'No') AS asistio
       FROM datos a
-      JOIN comp b ON a.id_comp = b.id_comp
-      JOIN habitacion c ON a.id_habitacion = c.id_habitacion
-      JOIN estaca d ON a.id_estaca = d.id_estaca
-      JOIN barrio e ON a.id_barrio = e.id_barrio
-      JOIN asistencia f ON a.id = f.datos_id
+      LEFT JOIN comp b ON a.id_comp = b.id_comp
+      LEFT JOIN habitacion c ON a.id_habitacion = c.id_habitacion
+      LEFT JOIN estaca d ON a.id_estaca = d.id_estaca
+      LEFT JOIN barrio e ON a.id_barrio = e.id_barrio
+      LEFT JOIN asistencia f ON a.id = f.datos_id
       WHERE a.id = ${id};
     `;
 
@@ -181,40 +182,41 @@ export class PrismaService
         CASE
           WHEN b.id_comp = 1 THEN 'SC'
           WHEN b.id_comp = 2 THEN 'Staff'
-          ELSE CONCAT('C', b.id_comp - 2)
+          WHEN b.id_comp IS NOT NULL THEN CONCAT('C', b.id_comp - 2)
+          ELSE 'Sin compañía'
         END AS comp,
-        a.nombre,
-        a.apellido,
-        c.habitacion,
-        a.edad,
-        d.estaca,
-        e.barrio,
-        f.asistio,
-        a.telefono,
-        DATE_FORMAT(a.nacimiento, '%Y-%m-%d') as nacimiento,
-        a.sexo,
-        a.tipo,
-        a.talla,
-        a.correo,
-        a.nom_c1,
-        a.telef_c1,
-        a.grupo_sang,
-        a.miembro,
-        a.enf_cronica,
-        a.trat_med,
-        a.seguro,
-        a.alergia_med,
-        a.dieta,
-        a.obs_dieta,
-        a.alergia_alimento,
-        a.alergia_medicamento,
-        a.alergia_polvo_pelos_acaro
+        COALESCE(a.nombre, 'Desconocido') AS nombre,
+        COALESCE(a.apellido, 'Desconocido') AS apellido,
+        COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
+        COALESCE(a.edad, 0) AS edad,
+        COALESCE(d.estaca, 'Sin estaca') AS estaca,
+        COALESCE(e.barrio, 'Sin barrio') AS barrio,
+        COALESCE(f.asistio, 'No') AS asistio,
+        COALESCE(a.telefono, '') AS telefono,
+        COALESCE(DATE_FORMAT(a.nacimiento, '%Y-%m-%d'), '') AS nacimiento,
+        COALESCE(a.sexo, '') AS sexo,
+        COALESCE(a.tipo, 'Participante') AS tipo,
+        COALESCE(a.talla, '') AS talla,
+        COALESCE(a.correo, '') AS correo,
+        COALESCE(a.nom_c1, '') AS nom_c1,
+        COALESCE(a.telef_c1, '') AS telef_c1,
+        COALESCE(a.grupo_sang, '') AS grupo_sang,
+        COALESCE(a.miembro, '') AS miembro,
+        COALESCE(a.enf_cronica, '') AS enf_cronica,
+        COALESCE(a.trat_med, '') AS trat_med,
+        COALESCE(a.seguro, '') AS seguro,
+        COALESCE(a.alergia_med, '') AS alergia_med,
+        COALESCE(a.dieta, 'No') AS dieta,
+        COALESCE(a.obs_dieta, '') AS obs_dieta,
+        COALESCE(a.alergia_alimento, 'No') AS alergia_alimento,
+        COALESCE(a.alergia_medicamento, 'No') AS alergia_medicamento,
+        COALESCE(a.alergia_polvo_pelos_acaro, 'No') AS alergia_polvo_pelos_acaro
       FROM datos a
-      JOIN comp b ON a.id_comp = b.id_comp
-      JOIN habitacion c ON a.id_habitacion = c.id_habitacion
-      JOIN estaca d ON a.id_estaca = d.id_estaca
-      JOIN barrio e ON a.id_barrio = e.id_barrio
-      JOIN asistencia f ON a.id = f.datos_id
+      LEFT JOIN comp b ON a.id_comp = b.id_comp
+      LEFT JOIN habitacion c ON a.id_habitacion = c.id_habitacion
+      LEFT JOIN estaca d ON a.id_estaca = d.id_estaca
+      LEFT JOIN barrio e ON a.id_barrio = e.id_barrio
+      LEFT JOIN asistencia f ON a.id = f.datos_id
       WHERE a.id = ${id};
     `;
 
@@ -716,13 +718,13 @@ export class PrismaService
         (p) => p.asistio === 'Si' && p.compañia === 2,
       ).length;
 
-      // Filtrar cumpleañeros del día
+      // Filtrar cumpleañeros del día que asistieron
       const hoy = new Date();
       const diaHoy = hoy.getDate();
       const mesHoy = hoy.getMonth() + 1; // Los meses en JS van de 0-11
 
       const cumpleaneros = participantes.filter((p) => {
-        if (!p.nacimiento) return false;
+        if (!p.nacimiento || p.asistio !== 'Si') return false;
 
         // Parsear la fecha de nacimiento sin timezone (formato: YYYY-MM-DD)
         // Extraer directamente día y mes de la cadena sin conversiones de timezone
@@ -822,20 +824,20 @@ export class PrismaService
         SELECT
           a.id AS id,
           CONCAT(a.apellido, ", ", a.nombre) AS nombres,
-          a.sexo AS sexo,
-          CONCAT("Estaca ", f.estaca) AS estaca,
-          e.barrio AS barrio,
+          COALESCE(a.sexo, 'H') AS sexo,
+          COALESCE(CONCAT("Estaca ", f.estaca), 'Sin estaca') AS estaca,
+          COALESCE(e.barrio, 'Sin barrio') AS barrio,
           a.id_comp AS compañia,
-          c.habitacion AS habitacion,
-          d.asistio AS asistio,
-          a.dieta AS dieta,
-          a.obs_dieta AS obs_dieta,
-          a.tipo AS tipo
+          COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
+          COALESCE(d.asistio, 'No') AS asistio,
+          COALESCE(a.dieta, 'No') AS dieta,
+          COALESCE(a.obs_dieta, '') AS obs_dieta,
+          COALESCE(a.tipo, 'Participante') AS tipo
         FROM datos a
-        JOIN habitacion c ON a.id_habitacion = c.id_habitacion
-        JOIN asistencia d ON a.id = d.datos_id
-        JOIN barrio e ON a.id_barrio = e.id_barrio
-        JOIN estaca f ON a.id_estaca = f.id_estaca
+        LEFT JOIN habitacion c ON a.id_habitacion = c.id_habitacion
+        LEFT JOIN asistencia d ON a.id = d.datos_id
+        LEFT JOIN barrio e ON a.id_barrio = e.id_barrio
+        LEFT JOIN estaca f ON a.id_estaca = f.id_estaca
         ORDER BY a.id_comp, a.sexo DESC, d.asistio DESC;
       `;
 
