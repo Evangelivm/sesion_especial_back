@@ -289,11 +289,27 @@ export class PermutaService {
 
     // Si se debe marcar asistencia, actualizar la tabla asistencia
     if (marcarAsistencia) {
-      await this.prisma.asistencia.upsert({
+      // Buscar si ya existe un registro de asistencia para esta persona
+      const asistenciaExistente = await this.prisma.asistencia.findFirst({
         where: { datos_id: personaId },
-        update: { asistio: 'Si' },
-        create: { datos_id: personaId, asistio: 'Si' },
       });
+
+      if (asistenciaExistente) {
+        // Si existe, actualizar
+        await this.prisma.asistencia.update({
+          where: { id_asistencia: asistenciaExistente.id_asistencia },
+          data: { asistio: 'Si' },
+        });
+      } else {
+        // Si no existe, crear (id_participacion = 2 basado en createParticipanteWithAsistencia)
+        await this.prisma.asistencia.create({
+          data: {
+            datos_id: personaId,
+            asistio: 'Si',
+            id_participacion: 2,
+          },
+        });
+      }
     }
 
     const resultado = {
