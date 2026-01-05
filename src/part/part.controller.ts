@@ -87,7 +87,8 @@ export class PartController {
     await this.prismaService.publishSummariesByAges();
     await this.prismaService.publishRoomsByAgesAndGenre();
     await this.prismaService.publishParticipantesOrdenados(Number(id));
-    await this.prismaService.publishDireccionStats();
+    await this.prismaService.publishAlimentosStats(); // Para página de alimentos
+    await this.prismaService.publishDireccionStats(); // Para página de dirección
 
     return response;
   }
@@ -103,6 +104,10 @@ export class PartController {
         Number(id),
         body,
       );
+
+      // Publicar estadísticas actualizadas de alimentos en WebSocket
+      await this.prismaService.publishAlimentosStats();
+
       return res.status(HttpStatus.OK).json(updated);
     } catch (error) {
       console.error('Error al actualizar información médica:', error);
@@ -155,6 +160,8 @@ export class PartController {
       await this.prismaService.publishSummariesByAges();
       await this.prismaService.publishRoomsByAgesAndGenre();
       await this.prismaService.publishParticipantesOrdenados(result.id);
+      await this.prismaService.publishAlimentosStats(); // Para página de alimentos
+      await this.prismaService.publishDireccionStats(); // Para página de dirección
 
       return res.status(HttpStatus.CREATED).json(result);
     } catch (error) {
