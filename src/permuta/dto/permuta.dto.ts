@@ -23,6 +23,7 @@ export const CambioCompuestoDtoSchema = z.object({
   persona_id: z.number().positive(),
   nueva_compania_id: z.number().positive(),
   nueva_habitacion_id: z.number().positive(),
+  marcar_asistencia: z.boolean().optional().default(false),
 });
 
 export type CambioCompuestoDto = z.infer<typeof CambioCompuestoDtoSchema>;

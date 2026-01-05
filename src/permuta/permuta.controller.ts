@@ -103,13 +103,14 @@ export class PermutaController {
     try {
       // Validar con Zod
       const validatedData = CambioCompuestoDtoSchema.parse(body);
-      const { persona_id, nueva_compania_id, nueva_habitacion_id } =
+      const { persona_id, nueva_compania_id, nueva_habitacion_id, marcar_asistencia } =
         validatedData;
 
       const resultado = await this.permutaService.cambioCompuesto(
         persona_id,
         nueva_compania_id,
         nueva_habitacion_id,
+        marcar_asistencia,
       );
 
       return resultado;

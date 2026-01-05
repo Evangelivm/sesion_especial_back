@@ -208,6 +208,7 @@ export class PermutaService {
     personaId: number,
     nuevaCompaniaId: number,
     nuevaHabitacionId: number,
+    marcarAsistencia?: boolean,
   ) {
     // Validar que la compañía exista
     const compania = await this.prisma.comp.findUnique({
@@ -286,8 +287,17 @@ export class PermutaService {
       },
     });
 
+    // Si se debe marcar asistencia, actualizar la tabla asistencia
+    if (marcarAsistencia) {
+      await this.prisma.asistencia.upsert({
+        where: { datos_id: personaId },
+        update: { asistio: 'Si' },
+        create: { datos_id: personaId, asistio: 'Si' },
+      });
+    }
+
     const resultado = {
-      mensaje: 'Cambio compuesto realizado exitosamente',
+      mensaje: `Cambio compuesto realizado exitosamente${marcarAsistencia ? ' y asistencia marcada' : ''}`,
       persona: {
         id: persona.id,
         nombre: `${persona.nombre} ${persona.apellido}`,
@@ -295,11 +305,12 @@ export class PermutaService {
         companiaNueva: compania.comp,
         habitacionAnterior: persona.habitacion?.habitacion || 'Sin asignar',
         habitacionNueva: habitacion.habitacion,
+        asistenciaMarcada: marcarAsistencia || false,
       },
     };
 
     console.log(
-      `\x1b[95mCambio compuesto:\x1b[0m ${resultado.persona.nombre} (Compañía: ${resultado.persona.companiaAnterior} → ${resultado.persona.companiaNueva} | Habitación: ${resultado.persona.habitacionAnterior} → ${resultado.persona.habitacionNueva})`,
+      `\x1b[95mCambio compuesto:\x1b[0m ${resultado.persona.nombre} (Compañía: ${resultado.persona.companiaAnterior} → ${resultado.persona.companiaNueva} | Habitación: ${resultado.persona.habitacionAnterior} → ${resultado.persona.habitacionNueva}${marcarAsistencia ? ' | Asistencia: Sí' : ''})`,
     );
 
     // Publicar actualizaciones a los canales de pub/sub

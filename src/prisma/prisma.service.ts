@@ -733,10 +733,13 @@ export class PrismaService
         return dia === diaHoy && mes === mesHoy;
       });
 
+      const matrimoniosDirectores = 4; // 2 matrimonios = 4 personas
+
       const stats = {
         participantesAsistieron,
         staffAsistieron,
-        totalAsistieron: participantesAsistieron + staffAsistieron,
+        matrimoniosDirectores,
+        totalAsistieron: participantesAsistieron + staffAsistieron + matrimoniosDirectores,
         cumpleaneros,
         timestamp: new Date().toISOString(),
       };
