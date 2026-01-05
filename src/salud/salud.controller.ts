@@ -8,6 +8,8 @@ import {
   Param,
   ParseIntPipe,
   Delete,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { SaludService } from './salud.service';
 
@@ -18,9 +20,14 @@ export class SaludController {
   @Get()
   async findAll() {
     try {
-      return await this.saludService.findAll();
+      console.log('🔍 Iniciando consulta GET /salud...');
+      const result = await this.saludService.findAll();
+      console.log('✅ Consulta exitosa, registros:', result.length);
+      return result;
     } catch (error) {
       console.error('❌ Error en GET /salud:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
       throw error;
     }
   }
@@ -62,8 +69,20 @@ export class SaludController {
   }
 
   @Get('atencion')
-  getAllAtencionDetails() {
-    return this.saludService.getAllAtencionDetails();
+  async getAllAtencionDetails() {
+    try {
+      return await this.saludService.getAllAtencionDetails();
+    } catch (error) {
+      console.error('Error al obtener detalles de atenciones:', error);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Error al obtener el historial de atenciones',
+          error: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get('atencion/part/:idDatos')

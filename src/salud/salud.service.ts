@@ -211,18 +211,20 @@ export class SaludService {
     });
 
     // Concatenate nombre and apellido for each attention record
-    const formattedAtenciones = atenciones.map((atencion) => ({
-      ...atencion,
-      datos: {
-        id: atencion.datos.id,
-        nombre_completo: `${atencion.datos.nombre} ${atencion.datos.apellido}`,
-        dieta: atencion.datos.dieta,
-        obs_dieta: atencion.datos.obs_dieta,
-        alergia_alimento: atencion.datos.alergia_alimento,
-        alergia_medicamento: atencion.datos.alergia_medicamento,
-        alergia_polvo_pelos_acaro: atencion.datos.alergia_polvo_pelos_acaro,
-      },
-    }));
+    const formattedAtenciones = atenciones
+      .filter((atencion) => atencion.datos) // Filtrar registros sin datos válidos
+      .map((atencion) => ({
+        ...atencion,
+        datos: {
+          id: atencion.datos.id,
+          nombre_completo: `${atencion.datos.nombre || ''} ${atencion.datos.apellido || ''}`.trim(),
+          dieta: atencion.datos.dieta,
+          obs_dieta: atencion.datos.obs_dieta,
+          alergia_alimento: atencion.datos.alergia_alimento,
+          alergia_medicamento: atencion.datos.alergia_medicamento,
+          alergia_polvo_pelos_acaro: atencion.datos.alergia_polvo_pelos_acaro,
+        },
+      }));
 
     return formattedAtenciones;
   }
