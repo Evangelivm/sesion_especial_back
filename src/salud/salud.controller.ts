@@ -16,8 +16,13 @@ export class SaludController {
   constructor(private readonly saludService: SaludService) {}
 
   @Get()
-  findAll() {
-    return this.saludService.findAll();
+  async findAll() {
+    try {
+      return await this.saludService.findAll();
+    } catch (error) {
+      console.error('❌ Error en GET /salud:', error);
+      throw error;
+    }
   }
 
   @Get('inv')

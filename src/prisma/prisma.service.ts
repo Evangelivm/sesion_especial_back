@@ -42,7 +42,7 @@ export class PrismaService
       SELECT
         d.id,
         CONCAT(d.apellido, ', ', d.nombre) AS name,
-        CONCAT('C', c.id_comp - 2) AS compania,
+        CASE WHEN c.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', c.id_comp - 2) END AS compania,
         d.tipo
       FROM datos d
       JOIN comp c ON d.id_comp = c.id_comp;
@@ -84,7 +84,7 @@ export class PrismaService
       >`
       SELECT
         a.id,
-        CONCAT('C', b.id_comp - 2) AS comp,
+        CASE WHEN b.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', b.id_comp - 2) END AS comp,
         a.nombre,
         a.apellido,
         c.habitacion,
@@ -157,7 +157,7 @@ export class PrismaService
       >`
       SELECT
         a.id,
-        CONCAT('C', b.id_comp - 2) AS comp,
+        CASE WHEN b.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', b.id_comp - 2) END AS comp,
         a.nombre,
         a.apellido,
         c.habitacion,
@@ -456,7 +456,7 @@ export class PrismaService
           COALESCE(e.barrio, 'Sin barrio') AS barrio,
           a.edad,
           a.tipo,
-          CONCAT('C', g.id_comp - 2) AS comp,
+          CASE WHEN g.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', g.id_comp - 2) END AS comp,
           COALESCE(c.habitacion, 'Sin habitación') AS habitacion,
           COALESCE(d.asistio, 'No') AS asistio
         FROM datos a
@@ -505,29 +505,35 @@ export class PrismaService
       >`
         SELECT
           a.id,
-          CONCAT(a.nombre, " ", a.apellido) AS nombres,
-          a.edad,
-          a.sexo,
-          g.id_comp - 2 AS comp,
-          a.grupo_sang,
-          a.enf_cronica,
-          a.trat_med,
-          a.alergia_med,
-          a.dieta,
-          a.obs_dieta,
-          a.alergia_alimento,
-          a.alergia_medicamento,
-          a.alergia_polvo_pelos_acaro
+          CONCAT(COALESCE(a.nombre, ''), " ", COALESCE(a.apellido, '')) AS nombres,
+          COALESCE(a.edad, 0) AS edad,
+          COALESCE(a.sexo, 'H') AS sexo,
+          CASE
+            WHEN g.id_comp IS NULL THEN 'Sin Compañía'
+            WHEN g.id_comp = 2 THEN 'Staff'
+            ELSE CONCAT('C', g.id_comp - 2)
+          END AS comp,
+          COALESCE(a.grupo_sang, '') AS grupo_sang,
+          COALESCE(a.enf_cronica, '') AS enf_cronica,
+          COALESCE(a.trat_med, '') AS trat_med,
+          COALESCE(a.alergia_med, '') AS alergia_med,
+          COALESCE(a.dieta, 'No') AS dieta,
+          COALESCE(a.obs_dieta, '') AS obs_dieta,
+          COALESCE(a.alergia_alimento, 'No') AS alergia_alimento,
+          COALESCE(a.alergia_medicamento, 'No') AS alergia_medicamento,
+          COALESCE(a.alergia_polvo_pelos_acaro, 'No') AS alergia_polvo_pelos_acaro
         FROM datos a
-        JOIN comp g ON a.id_comp = g.id_comp
-        ORDER BY g.id_comp, nombres;
+        LEFT JOIN comp g ON a.id_comp = g.id_comp
+        ORDER BY COALESCE(g.id_comp, 999), nombres;
       `;
 
-      console.log('\x1b[95mDatos de salud consultados\x1b[0m');
+      console.log('\x1b[95mDatos de salud consultados:', saludData.length, 'registros\x1b[0m');
       return saludData;
     } catch (error) {
-      console.error('Error al consultar los datos de salud:', error);
-      throw new Error('Error al consultar los datos de salud');
+      console.error('\x1b[31m❌ Error al consultar los datos de salud:\x1b[0m', error);
+      console.error('Detalles del error:', error.message);
+      console.error('Stack trace:', error.stack);
+      throw error;
     }
   }
 
@@ -552,7 +558,7 @@ export class PrismaService
           CONCAT(a.nombre, " ", a.apellido) AS nombres,
           a.edad,
           a.sexo,
-          CONCAT('Compañia ', g.id_comp - 2) AS comp,
+          CASE WHEN g.id_comp = 2 THEN 'Compañia Staff' ELSE CONCAT('Compañia ', g.id_comp - 2) END AS comp,
           a.grupo_sang,
           a.enf_cronica,
           a.trat_med,
@@ -844,7 +850,7 @@ export class PrismaService
               d.id,
               CONCAT(d.nombre, ' ', d.apellido) AS nombre,
               d.edad,
-              CONCAT('C', c.id_comp - 2) AS compania,
+              CASE WHEN c.id_comp = 2 THEN 'Staff' ELSE CONCAT('C', c.id_comp - 2) END AS compania,
               d.tipo AS tipo
             FROM datos d
             JOIN asistencia a ON d.id = a.datos_id
