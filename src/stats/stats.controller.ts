@@ -11,6 +11,11 @@ export class StatsController {
     return await this.prismaService.getParticipantesOrdenados();
   }
 
+  @Get('alimentos/stats')
+  async getAlimentosStats() {
+    return await this.prismaService.getAlimentosStats();
+  }
+
   @Get(':id')
   async getStatsByCompany(@Param('id') id: string) {
     const newId = parseInt(id, 10) + 1;
